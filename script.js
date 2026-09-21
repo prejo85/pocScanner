@@ -83,7 +83,7 @@ async function loadVolumeProfile() {
     rowsFullContainer.innerHTML = '<div class="loading-text">Calcolo POC e Distribuzione Volumi Storici...</div>';
     rowsAthContainer.innerHTML = '<div class="loading-text">Calcolo Analitico dal Massimo Storico (ATH)...</div>';
 
-    // Avvia l'inizializzazione del grafico ufficiale TradingView
+    // Innesca il widget nativo TradingView
     renderTradingViewWidget(ticker);
 
     let data;
@@ -93,6 +93,7 @@ async function loadVolumeProfile() {
     const isCrypto = marketDatabase.CRYPTO.some(c => c.ticker === ticker);
 
     try {
+        // CORRETTO: Cambiato TIME_SERIES_DATIY in TIME_SERIES_DAILY
         let parametri = isCrypto 
             ? "function=DIGITAL_CURRENCY_DAILY&symbol=" + ticker + "&market=USD&apikey=" + PRIMARY_KEY
             : "function=TIME_SERIES_DAILY&symbol=" + ticker + "&outputsize=full&apikey=" + PRIMARY_KEY;
@@ -102,7 +103,7 @@ async function loadVolumeProfile() {
         data = await response.json();
 
         if (data["Note"] || data["Information"]) {
-            throw new Error("Chiave API sature. Attendi un minuto per i dati di volume.");
+            throw new Error("Chiave API sature. Attendi un minuto per scaricare i volumi reali.");
         }
         if (data["Error Message"]) {
             throw new Error("Asset non riconosciuto dai server volumetrici.");
@@ -156,6 +157,8 @@ async function loadVolumeProfile() {
         rowsAthContainer.innerHTML = '<div class="loading-text" style="color: #ef4444;">Impossibile calcolare i volumi storici su dati assenti.</div>';
     }
 }
+
+
 function renderTradingViewWidget(ticker) {
     let formattedSymbol = ticker;
 
@@ -167,7 +170,9 @@ function renderTradingViewWidget(ticker) {
         formattedSymbol = "NASDAQ:" + ticker;
     }
 
-    if (typeof TradingView !== 'undefined') {
+    const container = document.getElementById("tv-chart-widget");
+    if (container && typeof TradingView !== 'undefined') {
+        container.innerHTML = ''; // Pulisce vecchi widget residui
         new TradingView.widget({
             "autosize": true,
             "symbol": formattedSymbol,
@@ -184,6 +189,7 @@ function renderTradingViewWidget(ticker) {
         });
     }
 }
+
 function renderSingleProfile(dataset, container, pocId, vaId, ticker, currentPrice) {
     if (dataset.length === 0) return;
     
