@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Market Volume & Price</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Caricamento sicuro della libreria ufficiale di TradingView prima dello script principale -->
-    <script src="https://tradingview.com"></script>
+    <!-- Script ufficiale TradingView Widget CDN -->
+    <script type="text/javascript" src="https://tradingview.com"></script>
 </head>
 <body>
 
@@ -26,17 +26,20 @@
             </div>
         </header>
 
-        <!-- Area centrale dove apparirà il grafico di TradingView -->
-        <div id="main-price-chart" class="chart-price-container"></div>
+        <!-- Contenitore specifico richiesto dal Widget TradingView -->
+        <div class="chart-price-container">
+            <div id="tv-chart-widget" style="width: 100%; height: 100%;"></div>
+        </div>
 
-        <main class="profiles-wrapper">
-            <section class="profile-section">
+        <!-- Contenitore flessibile per affiancare i due profili -->
+        <main class="profiles-wrapper-side">
+            <section class="profile-section-side">
                 <h2>STORICO COMPLETO <span id="poc-display-full" class="metric-badge"></span> <span id="va-display-full" class="metric-badge va"></span></h2>
                 <div id="volume-profile-rows-full" class="volume-profile-container"></div>
             </section>
 
-            <section class="profile-section">
-                <h2>DAL MASSIMO STORICO A OGGI <span id="poc-display-ath" class="metric-badge"></span> <span id="va-display-ath" class="metric-badge va"></span></h2>
+            <section class="profile-section-side">
+                <h2>DAL MASSIMO STORICO AD OGGI <span id="poc-display-ath" class="metric-badge"></span> <span id="va-display-ath" class="metric-badge va"></span></h2>
                 <div id="volume-profile-rows-ath" class="volume-profile-container"></div>
             </section>
         </main>

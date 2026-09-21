@@ -292,3 +292,35 @@ body {
     overflow: hidden;
     display: block;
 }
+/* Contenitore principale dei profumi affiancati */
+.profiles-wrapper-side {
+    display: flex;
+    flex-direction: row;
+    gap: 30px;
+    width: 100%;
+    margin-top: 25px;
+    box-sizing: border-box;
+}
+
+/* Ciascuna delle due sezioni occupa il 50% dello spazio */
+.profile-section-side {
+    flex: 1;
+    min-width: 0; /* Previene lo sformamento del layout in flexbox */
+    background-color: #0e1626;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #1e293b;
+}
+
+/* Stile per i titoli interni alle sezioni affiancate */
+.profile-section-side h2 {
+    font-size: 14px;
+    color: #94a3b8;
+    margin-bottom: 15px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    font-family: sans-serif;
+    letter-spacing: 0.5px;
+}

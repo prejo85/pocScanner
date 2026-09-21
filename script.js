@@ -1,10 +1,9 @@
 const TOTAL_BINS = 45; 
 const VA_PERCENTAGE = 0.70; 
 
-// Svuota i residui di memoria prima di iniziare
+// Reset completo della cache per evitare conflitti con vecchi calcoli
 sessionStorage.clear();
 
-// RIPRISTINATO IL DATABASE COMPLETO DI TUTTE LE AZIENDE
 const marketDatabase = {
     USA: [
         { ticker: "AAPL", name: "Apple Inc." },
@@ -34,8 +33,6 @@ const marketDatabase = {
         { ticker: "XRP", name: "Ripple (XRP)" }
     ]
 };
-
-// Forzza l'attesa del caricamento completo di tutti gli script esterni (TradingView incluso)
 window.addEventListener('load', () => {
     setupMarketSelector();
     updateTickerSelect("USA"); 
@@ -46,7 +43,6 @@ window.addEventListener('load', () => {
         selectEl.addEventListener('change', loadVolumeProfile);
     }
 });
-
 
 document.getElementById('fetch-btn').addEventListener('click', loadVolumeProfile);
 
@@ -81,90 +77,86 @@ async function loadVolumeProfile() {
     let ticker = selectEl.value; 
     const rowsFullContainer = document.getElementById('volume-profile-rows-full');
     const rowsAthContainer = document.getElementById('volume-profile-rows-ath');
-    const chartContainer = document.getElementById('main-price-chart');
     
     if (!rowsFullContainer || !rowsAthContainer) return;
 
-    rowsFullContainer.innerHTML = '<div class="loading-text">Elaborazione dati...</div>';
-    rowsAthContainer.innerHTML = '<div class="loading-text">Elaborazione dati...</div>';
-    if (chartContainer) chartContainer.innerHTML = '<div class="loading-text-chart">Caricamento grafico interattivo...</div>';
+    rowsFullContainer.innerHTML = '<div class="loading-text">Calcolo POC e Distribuzione Volumi Storici...</div>';
+    rowsAthContainer.innerHTML = '<div class="loading-text">Calcolo Analitico dal Massimo Storico (ATH)...</div>';
 
-    let data = { "Time Series (Daily)": {} };
-    
-    // Calibrazione dinamica del prezzo simulato per evitare errori di calcolo matematici
-    let basePrice = 150;
-    if (ticker === "BTC") basePrice = 65000;
-    else if (ticker === "ETH") basePrice = 3400;
-    else if (ticker === "SOL") basePrice = 140;
-    else if (ticker === "BNB") basePrice = 580;
-    else if (ticker === "XRP") basePrice = 0.60;
-    else if (ticker.endsWith(".MIL")) basePrice = 18; 
+    // Avvia l'inizializzazione del grafico ufficiale TradingView
+    renderTradingViewWidget(ticker);
 
-    let currentDate = new Date();
-    for (let i = 0; i < 100; i++) {
-        let yyyy = currentDate.getFullYear();
-        let mm = String(currentDate.getMonth() + 1).padStart(2, '0');
-        let dd = String(currentDate.getDate()).padStart(2, '0');
-        let dateStr = yyyy + "-" + mm + "-" + dd;
-
-        let change = (Math.random() - 0.49) * (basePrice * 0.02);
-        let open = basePrice;
-        let close = basePrice + change;
-        let high = Math.max(open, close) + (Math.random() * (basePrice * 0.01));
-        let low = Math.min(open, close) - (Math.random() * (basePrice * 0.01));
-        let volume = Math.floor(Math.random() * 2000000) + 100000;
-        
-        data["Time Series (Daily)"][dateStr] = {
-            "1. open": open.toFixed(2),
-            "2. high": high.toFixed(2),
-            "3. low": low.toFixed(2),
-            "4. close": close.toFixed(2),
-            "5. volume": volume.toString()
-        };
-        basePrice = close;
-        currentDate.setDate(currentDate.getDate() - 1);
-    }
+    let data;
+    const PRIMARY_KEY = "DXEHNXKL0G33RM7N"; 
+    const dominio = 'https://alphavantage.co';
+    const endpoint = '/query';
+    const isCrypto = marketDatabase.CRYPTO.some(c => c.ticker === ticker);
 
     try {
+        let parametri = isCrypto 
+            ? "function=DIGITAL_CURRENCY_DAILY&symbol=" + ticker + "&market=USD&apikey=" + PRIMARY_KEY
+            : "function=TIME_SERIES_DAILY&symbol=" + ticker + "&outputsize=full&apikey=" + PRIMARY_KEY;
+
+        const response = await fetch(dominio + endpoint + "?" + parametri);
+        if (!response.ok) throw new Error("Errore di connessione di rete.");
+        data = await response.json();
+
+        if (data["Note"] || data["Information"]) {
+            throw new Error("Chiave API sature. Attendi un minuto per i dati di volume.");
+        }
+        if (data["Error Message"]) {
+            throw new Error("Asset non riconosciuto dai server volumetrici.");
+        }
+
         let allDataPoints = [];
         let absoluteMaxPrice = -Infinity;
         let athIndex = 0;
-        
-        const timeSeries = data["Time Series (Daily)"];
+
+        const timeSeriesKey = Object.keys(data).find(key => 
+            key.toLowerCase().includes("time series") || 
+            key.toLowerCase().includes("digital currency") ||
+            key.toLowerCase().includes("daily")
+        );
+
+        if (!timeSeriesKey) throw new Error("Struttura dati non riconosciuta.");
+
+        const timeSeries = data[timeSeriesKey];
         const sortedDates = Object.keys(timeSeries).sort((a, b) => new Date(a) - new Date(b));
-        let currentPrice = parseFloat(timeSeries[sortedDates[sortedDates.length - 1]]["4. close"]);
+        
+        const latestCloseKey = Object.keys(timeSeries[sortedDates[sortedDates.length - 1]]).find(k => k.toLowerCase().includes("close"));
+        let currentPrice = parseFloat(timeSeries[sortedDates[sortedDates.length - 1]][latestCloseKey]);
 
         sortedDates.forEach((date) => {
             const dayData = timeSeries[date];
-            const high = parseFloat(dayData["2. high"]);
-            const low = parseFloat(dayData["3. low"]);
-            const close = parseFloat(dayData["4. close"]);
-            const volume = parseFloat(dayData["5. volume"]);
+            const highKey = Object.keys(dayData).find(k => k.toLowerCase().includes("high"));
+            const lowKey = Object.keys(dayData).find(k => k.toLowerCase().includes("low"));
+            const closeKey = Object.keys(dayData).find(k => k.toLowerCase().includes("close"));
+            const volumeKey = Object.keys(dayData).find(k => k.toLowerCase().includes("volume"));
 
-            allDataPoints.push({ date, high, low, close, volume });
+            const high = parseFloat(dayData[highKey]);
+            const low = parseFloat(dayData[lowKey]);
+            const close = parseFloat(dayData[closeKey]);
+            const volume = parseFloat(dayData[volumeKey]);
 
-            if (high > absoluteMaxPrice) {
-                absoluteMaxPrice = high;
-                athIndex = allDataPoints.length - 1; 
+            if (!isNaN(high) && !isNaN(low) && !isNaN(close) && !isNaN(volume)) {
+                allDataPoints.push({ date, high, low, close, volume });
+
+                if (high > absoluteMaxPrice) {
+                    absoluteMaxPrice = high;
+                    athIndex = allDataPoints.length - 1; 
+                }
             }
         });
 
-        if (chartContainer) {
-            renderTradingViewWidget(chartContainer, ticker);
-        }
-
-        const fullHistoryData = allDataPoints;
-        const athToPresentData = allDataPoints.slice(athIndex);
-
-        renderSingleProfile(fullHistoryData, rowsFullContainer, 'poc-display-full', 'va-display-full', ticker, currentPrice);
-        renderSingleProfile(athToPresentData, rowsAthContainer, 'poc-display-ath', 'va-display-ath', ticker, currentPrice);
+        renderSingleProfile(allDataPoints, rowsFullContainer, 'poc-display-full', 'va-display-full', ticker, currentPrice);
+        renderSingleProfile(allDataPoints.slice(athIndex), rowsAthContainer, 'poc-display-ath', 'va-display-ath', ticker, currentPrice);
 
     } catch (error) {
-        if (chartContainer) chartContainer.innerHTML = '<div class="loading-text-chart" style="color: #ef4444;">Errore: ' + error.message + '</div>';
+        rowsFullContainer.innerHTML = '<div class="loading-text" style="color: #ef4444;">' + error.message + '</div>';
+        rowsAthContainer.innerHTML = '<div class="loading-text" style="color: #ef4444;">Impossibile calcolare i volumi storici su dati assenti.</div>';
     }
 }
-function renderTradingViewWidget(container, ticker) {
-    container.innerHTML = ''; 
+function renderTradingViewWidget(ticker) {
     let formattedSymbol = ticker;
 
     if (ticker === "BTC" || ticker === "ETH" || ticker === "SOL" || ticker === "BNB" || ticker === "XRP") {
@@ -175,11 +167,9 @@ function renderTradingViewWidget(container, ticker) {
         formattedSymbol = "NASDAQ:" + ticker;
     }
 
-    // Se la libreria è pronta, avvia il widget immediatamente
-    if (typeof TradingView !== 'undefined' && typeof TradingView.widget === 'function') {
+    if (typeof TradingView !== 'undefined') {
         new TradingView.widget({
-            "width": "100%",
-            "height": "100%",
+            "autosize": true,
             "symbol": formattedSymbol,
             "interval": "D",
             "timezone": "Europe/Rome",
@@ -188,20 +178,15 @@ function renderTradingViewWidget(container, ticker) {
             "locale": "it",
             "toolbar_bg": "#f1f3f6",
             "enable_publishing": false,
-            "hide_side_toolbar": false,
-            "allow_symbol_change": true,
-            "container_id": container.id
+            "hide_legend": false,
+            "saveimage": false,
+            "container_id": "tv-chart-widget"
         });
-    } else {
-        // Se non è ancora pronta, attendi 500ms e riprova automaticamente senza mostrare errori
-        container.innerHTML = '<div class="loading-text-chart">Sincronizzazione con i server di TradingView...</div>';
-        setTimeout(function() {
-            renderTradingViewWidget(container, ticker);
-        }, 500);
     }
 }
-
 function renderSingleProfile(dataset, container, pocId, vaId, ticker, currentPrice) {
+    if (dataset.length === 0) return;
+    
     let minPrice = Infinity;
     let maxPrice = -Infinity;
 
@@ -291,7 +276,7 @@ function renderSingleProfile(dataset, container, pocId, vaId, ticker, currentPri
         rowElement.className = rowClasses;
         const priceLabelText = rowClasses.includes('current-price-border') ? ('' + currentPrice.toFixed(2)) : ('' + avgPrice);
 
-        rowElement.innerHTML = '<div class="price-label">' + priceLabelText + '</div>' +
+        rowElement.innerHTML = '<div class="price-label">$' + priceLabelText + '</div>' +
                                '<div class="bar-container">' +
                                '<div class="volume-bar" style="--volume-percentage: ' + percentage + '"></div>' +
                                '</div>';
@@ -304,5 +289,5 @@ function renderSingleProfile(dataset, container, pocId, vaId, ticker, currentPri
     
     let tickerClean = ticker.includes(".MIL") ? ticker.replace(".MIL", "") : ticker;
     if (pocDisplayEl) pocDisplayEl.innerText = tickerClean + " $" + pocPriceAvg;
-    if (vaDisplayEl) vaDisplayEl.innerText = "" + valPrice.toFixed(2) + " - " + vahPrice.toFixed(2);
+    if (vaDisplayEl) vaDisplayEl.innerText = "$" + valPrice.toFixed(2) + " - $" + vahPrice.toFixed(2);
 }
