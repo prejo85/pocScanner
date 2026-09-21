@@ -174,12 +174,15 @@ function renderTradingViewWidget(container, ticker) {
     }
 
     const iframe = document.createElement('iframe');
+    // Forzatura esplicita delle dimensioni dell'iframe per riempire il box blu
+    iframe.setAttribute("width", "100%");
+    iframe.setAttribute("height", "100%");
     iframe.style.width = '100%';
     iframe.style.height = '100%';
     iframe.style.border = 'none';
+    iframe.style.display = 'block';
     
-    // URL UNIVERSALE STANDALONE: Non viene bloccato dalle policy dei file locali del browser
-    iframe.src = "https://tradingview.com" + formattedSymbol + "&interval=D&theme=dark&style=1&timezone=Exchange&locale=it";
+    iframe.src = "https://tradingview.com" + formattedSymbol + "&interval=D&theme=dark&style=1&timezone=Europe%2FRome&locale=it";
     container.appendChild(iframe);
 }
 
