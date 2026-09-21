@@ -1,207 +1,154 @@
-const TOTAL_BINS = 45; 
+const TOTAL_BINS = 50;
 const VA_PERCENTAGE = 0.70; 
 
-// Reset completo della cache per evitare conflitti con vecchi calcoli
-sessionStorage.clear();
-
-const marketDatabase = {
-    USA: [
-        { ticker: "AAPL", name: "Apple Inc." },
-        { ticker: "MSFT", name: "Microsoft Corp." },
-        { ticker: "NVDA", name: "NVIDIA Corp." },
-        { ticker: "TSLA", name: "Tesla Inc." },
-        { ticker: "AMZN", name: "Amazon.com Inc." },
-        { ticker: "META", name: "Meta Platforms" },
-        { ticker: "GOOGL", name: "Alphabet Inc." },
-        { ticker: "AMD", name: "Advanced Micro Devices" }
-    ],
-    ITA: [
-        { ticker: "STLAM.MIL", name: "Stellantis N.V." },
-        { ticker: "RACE.MIL", name: "Ferrari N.V." },
-        { ticker: "ENI.MIL", name: "Eni S.p.A." },
-        { ticker: "ISP.MIL", name: "Intesa Sanpaolo" },
-        { ticker: "UCG.MIL", name: "Unicredit S.p.A." },
-        { ticker: "ENEL.MIL", name: "Enel S.p.A." },
-        { ticker: "STMMI.MIL", name: "STMicroelectronics" },
-        { ticker: "G.MIL", name: "Assicurazioni Generali" }
-    ],
-    CRYPTO: [
-        { ticker: "BTC", name: "Bitcoin (BTC)" },
-        { ticker: "ETH", name: "Ethereum (ETH)" },
-        { ticker: "SOL", name: "Solana (SOL)" },
-        { ticker: "BNB", name: "BNB (BNB)" },
-        { ticker: "XRP", name: "Ripple (XRP)" }
-    ]
-};
-window.addEventListener('load', () => {
-    setupMarketSelector();
-    updateTickerSelect("USA"); 
-    loadVolumeProfile();       
-    
-    const selectEl = document.getElementById('ticker-select');
-    if (selectEl) {
-        selectEl.addEventListener('change', loadVolumeProfile);
-    }
-});
-
 document.getElementById('fetch-btn').addEventListener('click', loadVolumeProfile);
+window.addEventListener('DOMContentLoaded', loadVolumeProfile);
 
-function setupMarketSelector() {
-    const buttons = document.querySelectorAll('.market-btn');
-    buttons.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            buttons.forEach(b => b.classList.remove('active'));
-            e.target.classList.add('active');
-            const selectedMarket = e.target.getAttribute('data-market');
-            updateTickerSelect(selectedMarket);
-            loadVolumeProfile();
-        });
-    });
-}
-
-function updateTickerSelect(marketKey) {
-    const selectEl = document.getElementById('ticker-select');
-    if (!selectEl) return;
-    selectEl.innerHTML = ''; 
-    marketDatabase[marketKey].forEach(item => {
-        const option = document.createElement('option');
-        option.value = item.ticker;
-        option.text = item.ticker + " - " + item.name;
-        selectEl.appendChild(option);
-    });
-}
 async function loadVolumeProfile() {
-    const selectEl = document.getElementById('ticker-select');
-    if (!selectEl) return;
-    
-    let ticker = selectEl.value; 
+    let ticker = document.getElementById('ticker-input').value.toUpperCase().trim();
     const rowsFullContainer = document.getElementById('volume-profile-rows-full');
     const rowsAthContainer = document.getElementById('volume-profile-rows-ath');
     
-    if (!rowsFullContainer || !rowsAthContainer) return;
+    rowsFullContainer.innerHTML = '<div class="loading-text">Download storico completo...</div>';
+    rowsAthContainer.innerHTML = '<div class="loading-text">Elaborazione dati analitici...</div>';
 
-    rowsFullContainer.innerHTML = '<div class="loading-text">Calcolo POC e Distribuzione Volumi Storici...</div>';
-    rowsAthContainer.innerHTML = '<div class="loading-text">Calcolo Analitico dal Massimo Storico (ATH)...</div>';
+    // Rilevamento mercati rigido
+    let isCrypto = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP'].includes(ticker) || ticker.endsWith('USDT');
+    let isItalianStock = ticker.endsWith('.MI');
+    let isUSStock = !isCrypto && !isItalianStock;
 
-    // Innesca il widget nativo TradingView
-    renderTradingViewWidget(ticker);
-
-    let data;
-    const PRIMARY_KEY = "DXEHNXKL0G33RM7N"; 
-    const dominio = 'https://alphavantage.co';
-    const endpoint = '/query';
-    const isCrypto = marketDatabase.CRYPTO.some(c => c.ticker === ticker);
+    if (isCrypto && !ticker.endsWith('USDT')) {
+        ticker = ticker + 'USDT';
+    }
 
     try {
-        // CORRETTO: Cambiato TIME_SERIES_DATIY in TIME_SERIES_DAILY
-        let parametri = isCrypto 
-            ? "function=DIGITAL_CURRENCY_DAILY&symbol=" + ticker + "&market=USD&apikey=" + PRIMARY_KEY
-            : "function=TIME_SERIES_DAILY&symbol=" + ticker + "&outputsize=full&apikey=" + PRIMARY_KEY;
-
-        const response = await fetch(dominio + endpoint + "?" + parametri);
-        if (!response.ok) throw new Error("Errore di connessione di rete.");
-        data = await response.json();
-
-        if (data["Note"] || data["Information"]) {
-            throw new Error("Chiave API sature. Attendi un minuto per scaricare i volumi reali.");
-        }
-        if (data["Error Message"]) {
-            throw new Error("Asset non riconosciuto dai server volumetrici.");
-        }
-
         let allDataPoints = [];
-        let absoluteMaxPrice = -Infinity;
+        let currentPrice = 0;
+        let response;
+
+        if (isCrypto) {
+            // --- 1. CRYPTO VIA BINANCE (Costruzione nativa senza caratteri speciali espliciti) ---
+            const urlObj = new URL("https://binance.com");
+            urlObj.searchParams.append("symbol", ticker);
+            urlObj.searchParams.append("interval", "1d");
+            urlObj.searchParams.append("limit", "1000");
+
+            response = await fetch(urlObj.toString());
+            if (!response.ok) throw new Error("Ticker Crypto non trovato.");
+            
+            const klines = await response.json();
+            klines.forEach(candle => {
+                // Indici kline Binance: 2=High, 3=Low, 4=Close, 5=Volume
+                const high = parseFloat(candle[2]);
+                const low = parseFloat(candle[3]);
+                const close = parseFloat(candle[4]);
+                const volume = parseFloat(candle[5]);
+                
+                if (!isNaN(high) && !isNaN(low) && !isNaN(close) && !isNaN(volume)) {
+                    allDataPoints.push({ high: high, low: low, close: close, volume: volume });
+                }
+            });
+        } 
+        else if (isItalianStock) {
+            // --- 2. ITALIA VIA YAHOO FINANCE & PROXY ---
+            const urlObj = new URL("https://herokuapp.com" + ticker);
+            urlObj.searchParams.append("range", "2y");
+            urlObj.searchParams.append("interval", "1d");
+
+            response = await fetch(urlObj.toString(), { headers: { "X-Requested-With": "XMLHttpRequest" } });
+            if (response.status === 403) {
+                throw new Error("Sblocco CORS richiesto. Visita ://herokuapp.com");
+            }
+            if (!response.ok) throw new Error("Errore nel recupero dati da Yahoo.");
+            
+            const json = await response.json();
+            if (!json.chart || !json.chart.result) throw new Error("Ticker non trovato.");
+            
+            const result = json.chart.result[0];
+            const indicators = result.indicators.quote[0];
+            const timestamps = result.timestamp;
+
+            if (timestamps) {
+                timestamps.forEach((ts, idx) => {
+                    const high = parseFloat(indicators.high[idx]);
+                    const low = parseFloat(indicators.low[idx]);
+                    const close = parseFloat(indicators.close[idx]);
+                    const volume = parseFloat(indicators.volume[idx]);
+
+                    if (!isNaN(high) && !isNaN(low) && !isNaN(close) && !isNaN(volume)) {
+                        allDataPoints.push({ high: high, low: low, close: close, volume: volume });
+                    }
+                });
+            }
+        } 
+        else if (isUSStock) {
+            // --- 3. USA VIA STOOQ DATABASE ---
+            const stooqTicker = ticker.includes('.') ? ticker : ticker + ".US";
+            const urlObj = new URL("https://stooq.com");
+            urlObj.searchParams.append("s", stooqTicker);
+            urlObj.searchParams.append("i", "d");
+            
+            response = await fetch(urlObj.toString());
+            if (!response.ok) throw new Error("Database Stooq non raggiungibile.");
+            
+            const csvText = await response.text();
+            const lines = csvText.split('\n');
+            
+            for (let i = 1; i < lines.length; i++) {
+                const row = lines[i].split(',');
+                if (row.length >= 6) {
+                    // Struttura CSV Stooq: 2=High, 3=Low, 4=Close, 5=Volume
+                    const high = parseFloat(row[2]);
+                    const low = parseFloat(row[3]);
+                    const close = parseFloat(row[4]);
+                    const volume = parseFloat(row[5]);
+
+                    if (!isNaN(high) && !isNaN(low) && !isNaN(close) && !isNaN(volume)) {
+                        allDataPoints.push({ high: high, low: low, close: close, volume: volume });
+                    }
+                }
+            }
+            allDataPoints.reverse();
+        }
+
+        if (allDataPoints.length === 0) {
+            throw new Error("Nessun dato valido estratto. Controlla il ticker.");
+        }
+
+        currentPrice = allDataPoints[allDataPoints.length - 1].close;
+
+        let athMaxPrice = -Infinity;
         let athIndex = 0;
 
-        const timeSeriesKey = Object.keys(data).find(key => 
-            key.toLowerCase().includes("time series") || 
-            key.toLowerCase().includes("digital currency") ||
-            key.toLowerCase().includes("daily")
-        );
-
-        if (!timeSeriesKey) throw new Error("Struttura dati non riconosciuta.");
-
-        const timeSeries = data[timeSeriesKey];
-        const sortedDates = Object.keys(timeSeries).sort((a, b) => new Date(a) - new Date(b));
-        
-        const latestCloseKey = Object.keys(timeSeries[sortedDates[sortedDates.length - 1]]).find(k => k.toLowerCase().includes("close"));
-        let currentPrice = parseFloat(timeSeries[sortedDates[sortedDates.length - 1]][latestCloseKey]);
-
-        sortedDates.forEach((date) => {
-            const dayData = timeSeries[date];
-            const highKey = Object.keys(dayData).find(k => k.toLowerCase().includes("high"));
-            const lowKey = Object.keys(dayData).find(k => k.toLowerCase().includes("low"));
-            const closeKey = Object.keys(dayData).find(k => k.toLowerCase().includes("close"));
-            const volumeKey = Object.keys(dayData).find(k => k.toLowerCase().includes("volume"));
-
-            const high = parseFloat(dayData[highKey]);
-            const low = parseFloat(dayData[lowKey]);
-            const close = parseFloat(dayData[closeKey]);
-            const volume = parseFloat(dayData[volumeKey]);
-
-            if (!isNaN(high) && !isNaN(low) && !isNaN(close) && !isNaN(volume)) {
-                allDataPoints.push({ date, high, low, close, volume });
-
-                if (high > absoluteMaxPrice) {
-                    absoluteMaxPrice = high;
-                    athIndex = allDataPoints.length - 1; 
-                }
+        allDataPoints.forEach((point, index) => {
+            if (point.high > athMaxPrice) {
+                athMaxPrice = point.high;
+                athIndex = index;
             }
         });
 
-        renderSingleProfile(allDataPoints, rowsFullContainer, 'poc-display-full', 'va-display-full', ticker, currentPrice);
-        renderSingleProfile(allDataPoints.slice(athIndex), rowsAthContainer, 'poc-display-ath', 'va-display-ath', ticker, currentPrice);
+        const fullHistoryData = allDataPoints;
+        const athToPresentData = allDataPoints.slice(athIndex);
+        const cleanDisplayTicker = ticker.replace('USDT', '');
+
+        renderIndependentProfile(fullHistoryData, rowsFullContainer, 'poc-display-full', 'va-display-full', cleanDisplayTicker, currentPrice);
+        renderIndependentProfile(athToPresentData, rowsAthContainer, 'poc-display-ath', 'va-display-ath', cleanDisplayTicker, currentPrice);
 
     } catch (error) {
-        rowsFullContainer.innerHTML = '<div class="loading-text" style="color: #ef4444;">' + error.message + '</div>';
-        rowsAthContainer.innerHTML = '<div class="loading-text" style="color: #ef4444;">Impossibile calcolare i volumi storici su dati assenti.</div>';
+        rowsFullContainer.innerHTML = "<div class='loading-text' style='color: #ef4444;'>Errore: " + error.message + "</div>";
+        rowsAthContainer.innerHTML = "<div class='loading-text' style='color: #ef4444;'>Errore: " + error.message + "</div>";
     }
 }
-
-
-function renderTradingViewWidget(ticker) {
-    let formattedSymbol = ticker;
-
-    if (ticker === "BTC" || ticker === "ETH" || ticker === "SOL" || ticker === "BNB" || ticker === "XRP") {
-        formattedSymbol = "BINANCE:" + ticker + "USD";
-    } else if (ticker.endsWith(".MIL")) {
-        formattedSymbol = "MILAN:" + ticker.replace(".MIL", "");
-    } else {
-        formattedSymbol = "NASDAQ:" + ticker;
-    }
-
-    const container = document.getElementById("tv-chart-widget");
-    if (container && typeof TradingView !== 'undefined') {
-        container.innerHTML = ''; // Pulisce vecchi widget residui
-        new TradingView.widget({
-            "autosize": true,
-            "symbol": formattedSymbol,
-            "interval": "D",
-            "timezone": "Europe/Rome",
-            "theme": "dark",
-            "style": "1",
-            "locale": "it",
-            "toolbar_bg": "#f1f3f6",
-            "enable_publishing": false,
-            "hide_legend": false,
-            "saveimage": false,
-            "container_id": "tv-chart-widget"
-        });
-    }
-}
-
-function renderSingleProfile(dataset, container, pocId, vaId, ticker, currentPrice) {
-    if (dataset.length === 0) return;
-    
+function renderIndependentProfile(dataset, container, pocId, vaId, ticker, currentPrice) {
     let minPrice = Infinity;
     let maxPrice = -Infinity;
-
     dataset.forEach(d => {
         if (d.high > maxPrice) maxPrice = d.high;
         if (d.low < minPrice) minPrice = d.low;
     });
 
     const binSize = (maxPrice - minPrice) / TOTAL_BINS;
+    
     const bins = Array.from({ length: TOTAL_BINS }, (_, i) => {
         return {
             index: i,
@@ -213,14 +160,28 @@ function renderSingleProfile(dataset, container, pocId, vaId, ticker, currentPri
     });
 
     let totalVolume = 0;
+
     dataset.forEach(candle => {
-        for (let i = 0; i < TOTAL_BINS; i++) {
-            if (candle.close >= bins[i].lowPrice && candle.close <= bins[i].highPrice) {
-                bins[i].volume += candle.volume;
+        const candleRange = candle.high - candle.low;
+        if (candleRange === 0) {
+            const targetBin = bins.find(b => candle.close >= b.lowPrice && candle.close <= b.highPrice);
+            if (targetBin) {
+                targetBin.volume += candle.volume;
                 totalVolume += candle.volume;
-                break;
             }
+            return;
         }
+
+        bins.forEach(bin => {
+            const overlapLow = Math.max(candle.low, bin.lowPrice);
+            const overlapHigh = Math.min(candle.high, bin.highPrice);
+            if (overlapHigh > overlapLow) {
+                const weight = (overlapHigh - overlapLow) / candleRange;
+                const distributedVolume = candle.volume * weight;
+                bin.volume += distributedVolume;
+                totalVolume += distributedVolume;
+            }
+        });
     });
 
     let maxVolume = 0;
@@ -251,12 +212,16 @@ function renderSingleProfile(dataset, container, pocId, vaId, ticker, currentPri
             bins[downIdx].isInVA = true;
             currentVACount += bins[downIdx].volume;
             downIdx--;
+        } else if (upIdx < TOTAL_BINS) {
+            bins[upIdx].isInVA = true;
+            currentVACount += bins[upIdx].volume;
+            upIdx++;
         }
     }
 
     const vaIndices = bins.filter(b => b.isInVA).map(b => b.index);
-    const highestVAIndex = Math.max(...vaIndices);
-    const lowestVAIndex = Math.min(...vaIndices);
+    const highestVAIndex = vaIndices.length > 0 ? Math.max(...vaIndices) : pocIndex;
+    const lowestVAIndex = vaIndices.length > 0 ? Math.min(...vaIndices) : pocIndex;
 
     const valPrice = bins[lowestVAIndex] ? bins[lowestVAIndex].lowPrice : minPrice;
     const vahPrice = bins[highestVAIndex] ? bins[highestVAIndex].highPrice : maxPrice;
@@ -280,9 +245,11 @@ function renderSingleProfile(dataset, container, pocId, vaId, ticker, currentPri
 
         const rowElement = document.createElement('div');
         rowElement.className = rowClasses;
-        const priceLabelText = rowClasses.includes('current-price-border') ? ('' + currentPrice.toFixed(2)) : ('' + avgPrice);
+        
+        const isCurrentBin = rowClasses.includes('current-price-border');
+        const priceLabelText = isCurrentBin ? "$" + currentPrice.toFixed(2) : "$" + avgPrice;
 
-        rowElement.innerHTML = '<div class="price-label">$' + priceLabelText + '</div>' +
+        rowElement.innerHTML = '<div class="price-label">' + priceLabelText + '</div>' +
                                '<div class="bar-container">' +
                                '<div class="volume-bar" style="--volume-percentage: ' + percentage + '"></div>' +
                                '</div>';
@@ -290,10 +257,6 @@ function renderSingleProfile(dataset, container, pocId, vaId, ticker, currentPri
     });
 
     const pocPriceAvg = ((bins[pocIndex].lowPrice + bins[pocIndex].highPrice) / 2).toFixed(2);
-    const pocDisplayEl = document.getElementById(pocId);
-    const vaDisplayEl = document.getElementById(vaId);
-    
-    let tickerClean = ticker.includes(".MIL") ? ticker.replace(".MIL", "") : ticker;
-    if (pocDisplayEl) pocDisplayEl.innerText = tickerClean + " $" + pocPriceAvg;
-    if (vaDisplayEl) vaDisplayEl.innerText = "$" + valPrice.toFixed(2) + " - $" + vahPrice.toFixed(2);
+    document.getElementById(pocId).innerText = ticker + ' $' + pocPriceAvg;
+    document.getElementById(vaId).innerText = '' + valPrice.toFixed(2) + ' - ' + vahPrice.toFixed(2);
 }

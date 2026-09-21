@@ -63,85 +63,7 @@ body {
     background-color: #1d4ed8;
 }
 
-.chart-price-container {
-    width: 100%;
-    height: 300px;
-    min-height: 300px;
-    background-color: #172033;
-    border-radius: 6px;
-    margin-bottom: 25px;
-    position: relative;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-/* --- BARRA SELEZIONE MERCATI E TENDINA --- */
-.controls-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-}
-
-.market-buttons {
-    display: flex;
-    background-color: #1e293b;
-    padding: 3px;
-    border-radius: 6px;
-    border: 1px solid #334155;
-}
-
-.market-btn {
-    background: none;
-    border: none;
-    color: #94a3b8;
-    font-size: 11px;
-    font-weight: bold;
-    padding: 6px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.market-btn:hover {
-    color: #f8fafc;
-}
-
-.market-btn.active {
-    background-color: #2563eb;
-    color: #f8fafc;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-
-.select-container {
-    display: flex;
-    gap: 6px;
-}
-
-#ticker-select {
-    background-color: #1e293b;
-    border: 1px solid #334155;
-    color: #f8fafc;
-    font-size: 12px;
-    padding: 6px 12px;
-    border-radius: 4px;
-    outline: none;
-    cursor: pointer;
-    min-width: 160px;
-}
-
-#ticker-select option {
-    background-color: #121926;
-    color: #f8fafc;
-}
-
-
-
-.loading-text-chart {
-    font-size: 13px;
-    color: #62728d;
-    text-align: center;
-    padding-top: 135px;
-}
-
-/* Struttura orizzontale per i due box del Volume Profile */
+/* Allineamento dei due tabelloni */
 .charts-wrapper {
     display: flex;
     gap: 20px;
@@ -166,23 +88,22 @@ body {
 }
 
 .profile-rows-container {
-    min-height: 585px; /* Adattato per ospitare circa 45 bin */
+    min-height: 432px; /* 24 bin * 18px di spazio */
 }
 
 .loading-text {
     font-size: 12px;
     color: #62728d;
     text-align: center;
-    padding: 200px 0;
+    padding: 100px 0;
 }
 
-/* Nuova configurazione compatta a 12px richiesta */
 .profile-row {
     display: flex;
     align-items: center;
-    height: 12px; 
-    margin: 1px 0; 
-    font-size: 10px; 
+    height: 10px;
+    margin: 1px 0;
+    font-size: 11px;
     position: relative; 
 }
 
@@ -225,7 +146,7 @@ body {
     font-weight: bold;
 }
 
-/* Linee VAH e VAL */
+/* Linee VAL e VAH */
 .profile-row.vah-border::before,
 .profile-row.val-border::before {
     content: '';
@@ -240,32 +161,24 @@ body {
 .profile-row.vah-border::before { top: -1px; }
 .profile-row.val-border::before { bottom: -1px; top: auto; }
 
-/* Linea prezzo attuale verde */
-.profile-row.current-price-border::before {
-    content: '';
-    position: absolute;
-    left: 75px;
-    right: 0;
-    border-top: 2px dashed #10b981;
-    z-index: 20;
-    pointer-events: none;
-    top: 50%;
-    transform: translateY(-50%);
-}
-
-.profile-row.current-price-border::after {
-    content: 'LAST';
+.profile-row.vah-border::after {
+    content: 'VAH';
     position: absolute;
     right: 5px;
     top: -10px;
     font-size: 8px;
-    color: #10b981;
+    color: #f59e0b;
     font-weight: bold;
-    background-color: #121926;
-    padding: 0 3px;
-    z-index: 21;
-    border: 1px solid #10b981;
-    border-radius: 2px;
+}
+
+.profile-row.val-border::after {
+    content: 'VAL';
+    position: absolute;
+    right: 5px;
+    bottom: -10px;
+    font-size: 8px;
+    color: #f59e0b;
+    font-weight: bold;
 }
 
 .footer-info {
@@ -280,47 +193,36 @@ body {
 .poc-text { color: #ef4444; font-weight: bold; }
 .va-text { color: #94a3b8; }
 
-.chart-price-container {
-    width: 100%;
-    height: 350px; /* Aumentato leggermente per dare più respiro al grafico */
-    min-height: 350px;
-    background-color: #172033;
-    border-radius: 6px;
-    margin-bottom: 25px;
-    position: relative;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
-    overflow: hidden;
-    display: block;
-}
-/* Contenitore principale dei profumi affiancati */
-.profiles-wrapper-side {
-    display: flex;
-    flex-direction: row;
-    gap: 30px;
-    width: 100%;
-    margin-top: 25px;
-    box-sizing: border-box;
+
+/* --- LINEA TRATTEGGIATA VERDE PREZZO ATTUALE --- */
+.profile-row.current-price-border::before {
+    content: '';
+    position: absolute;
+    left: 75px; /* Inizia dopo la label del prezzo */
+    right: 0;
+    border-top: 2px dashed #10b981; /* Verde brillante */
+    z-index: 20;
+    pointer-events: none;
 }
 
-/* Ciascuna delle due sezioni occupa il 50% dello spazio */
-.profile-section-side {
-    flex: 1;
-    min-width: 0; /* Previene lo sformamento del layout in flexbox */
-    background-color: #0e1626;
-    padding: 20px;
-    border-radius: 8px;
-    border: 1px solid #1e293b;
+/* Posiziona la linea al centro della riga di prezzo corrente */
+.profile-row.current-price-border::before {
+    top: 50%;
+    transform: translateY(-50%);
 }
 
-/* Stile per i titoli interni alle sezioni affiancate */
-.profile-section-side h2 {
-    font-size: 14px;
-    color: #94a3b8;
-    margin-bottom: 15px;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-    font-family: sans-serif;
-    letter-spacing: 0.5px;
+/* Etichetta fluttuante "LAST" con il prezzo corrente */
+.profile-row.current-price-border::after {
+    content: 'LAST';
+    position: absolute;
+    right: 5px;
+    top: -10px;
+    font-size: 8px;
+    color: #10b981;
+    font-weight: bold;
+    background-color: #121926;
+    padding: 0 3px;
+    z-index: 21;
+    border: 1px solid #10b981;
+    border-radius: 2px;
 }
