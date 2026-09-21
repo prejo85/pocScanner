@@ -173,17 +173,26 @@ function renderTradingViewWidget(container, ticker) {
         formattedSymbol = "NASDAQ:" + ticker;
     }
 
-    const iframe = document.createElement('iframe');
-    // Forzatura esplicita delle dimensioni dell'iframe per riempire il box blu
-    iframe.setAttribute("width", "100%");
-    iframe.setAttribute("height", "100%");
-    iframe.style.width = '100%';
-    iframe.style.height = '100%';
-    iframe.style.border = 'none';
-    iframe.style.display = 'block';
-    
-    iframe.src = "https://tradingview.com" + formattedSymbol + "&interval=D&theme=dark&style=1&timezone=Europe%2FRome&locale=it";
-    container.appendChild(iframe);
+    // Inizializza il widget sfruttando la libreria caricata in modo sicuro nell'head dell'HTML
+    if (typeof TradingView !== 'undefined') {
+        new TradingView.widget({
+            "width": "100%",
+            "height": "100%",
+            "symbol": formattedSymbol,
+            "interval": "D",
+            "timezone": "Europe/Rome",
+            "theme": "dark",
+            "style": "1",
+            "locale": "it",
+            "toolbar_bg": "#f1f3f6",
+            "enable_publishing": false,
+            "hide_side_toolbar": false,
+            "allow_symbol_change": true,
+            "container_id": container.id
+        });
+    } else {
+        container.innerHTML = '<div class="loading-text-chart" style="color: #ef4444;">Errore: Libreria TradingView non caricata. Ricarica la pagina.</div>';
+    }
 }
 
 function renderSingleProfile(dataset, container, pocId, vaId, ticker, currentPrice) {

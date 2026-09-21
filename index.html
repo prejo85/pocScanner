@@ -3,69 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Volume Profile Dashboard Avanzata</title>
+    <title>Dashboard Market Volume & Price</title>
     <link rel="stylesheet" href="style.css">
-    <!-- CORREZIONE: Link ufficiale completo e sicuro da cdnjs per caricare TradingView -->
-    <script src="https://cloudflare.com"></script>
+    <!-- Caricamento sicuro della libreria ufficiale di TradingView prima dello script principale -->
+    <script src="https://tradingview.com"></script>
 </head>
 <body>
 
-    <div class="main-dashboard">
-        <!-- Barra dei comandi superiore a Selezione -->
-        <div class="header-container">
-            <div class="header-title">Market Volume & Price Dashboard</div>
-            
-            <div class="controls-wrapper">
-                <!-- Pulsanti Categoria Macro-Mercato -->
-                <div class="market-buttons">
-                    <button class="market-btn active" data-market="USA">🇺🇸 USA</button>
-                    <button class="market-btn" data-market="ITA">🇮🇹 ITA</button>
-                    <button class="market-btn" data-market="CRYPTO">🪙 CRYPTO</button>
-                </div>
-                
-                <!-- Menu a tendina dinamico delle aziende/asset -->
-                <div class="select-container">
-                    <select id="ticker-select">
-                        <!-- Popolato dinamicamente da JavaScript -->
-                    </select>
-                    <button id="fetch-btn">Aggiorna</button>
-                </div>
+    <div class="dashboard-container">
+        <header class="main-header">
+            <div class="logo-area">
+                <h1>MARKET VOLUME & PRICE DASHBOARD</h1>
             </div>
-        </div>
-
-        <!-- Contenitore del grafico dei prezzi -->
-        <div id="main-price-chart" class="chart-price-container">
-            <div class="loading-text-chart">Seleziona un asset e premi Aggiorna per caricare il grafico</div>
-        </div>
-
-        <!-- Contenitore dei due grafici volumetrici affiancati -->
-        <div class="charts-wrapper">
-            
-            <!-- GRAFICO 1: STORICO COMPLETO -->
-            <div class="volume-profile-container">
-                <div class="panel-title">Storico Completo</div>
-                <div id="volume-profile-rows-full" class="profile-rows-container">
-                    <div class="loading-text">In attesa dei dati...</div>
+            <div class="controls-area">
+                <div class="market-selector">
+                    <button class="market-btn active" data-market="USA">US USA</button>
+                    <button class="market-btn" data-market="ITA">IT ITA</button>
+                    <button class="market-btn" data-market="CRYPTO">CRYPTO</button>
                 </div>
-                <div class="footer-info">
-                    <div class="poc-text">POC: <span id="poc-display-full">--.--</span></div>
-                    <div class="va-text">Value Area (70%): <span id="va-display-full">--.--</span></div>
-                </div>
+                <select id="ticker-select" class="ticker-dropdown"></select>
+                <button id="fetch-btn" class="action-btn">Aggiorna</button>
             </div>
+        </header>
 
-            <!-- GRAFICO 2: DAL MASSIMO ASSOLUTO AD OGGI -->
-            <div class="volume-profile-container">
-                <div class="panel-title">Dal Massimo Storico a Oggi</div>
-                <div id="volume-profile-rows-ath" class="profile-rows-container">
-                    <div class="loading-text">In attesa dei dati...</div>
-                </div>
-                <div class="footer-info">
-                    <div class="poc-text">POC: <span id="poc-display-ath">--.--</span></div>
-                    <div class="va-text">Value Area (70%): <span id="va-display-ath">--.--</span></div>
-                </div>
-            </div>
+        <!-- Area centrale dove apparirà il grafico di TradingView -->
+        <div id="main-price-chart" class="chart-price-container"></div>
 
-        </div>
+        <main class="profiles-wrapper">
+            <section class="profile-section">
+                <h2>STORICO COMPLETO <span id="poc-display-full" class="metric-badge"></span> <span id="va-display-full" class="metric-badge va"></span></h2>
+                <div id="volume-profile-rows-full" class="volume-profile-container"></div>
+            </section>
+
+            <section class="profile-section">
+                <h2>DAL MASSIMO STORICO A OGGI <span id="poc-display-ath" class="metric-badge"></span> <span id="va-display-ath" class="metric-badge va"></span></h2>
+                <div id="volume-profile-rows-ath" class="volume-profile-container"></div>
+            </section>
+        </main>
     </div>
 
     <script src="script.js"></script>

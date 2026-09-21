@@ -292,14 +292,3 @@ body {
     overflow: hidden;
     display: block;
 }
-
-.chart-price-container::after {
-    content: 'Usa la rotella del mouse sul grafico per zoomare';
-    position: absolute;
-    top: 5px;
-    left: 55px;
-    font-size: 9px;
-    color: #475569;
-    font-family: monospace;
-    pointer-events: none;
-}
