@@ -35,7 +35,8 @@ const marketDatabase = {
     ]
 };
 
-window.addEventListener('DOMContentLoaded', () => {
+// Forzza l'attesa del caricamento completo di tutti gli script esterni (TradingView incluso)
+window.addEventListener('load', () => {
     setupMarketSelector();
     updateTickerSelect("USA"); 
     loadVolumeProfile();       
@@ -45,6 +46,7 @@ window.addEventListener('DOMContentLoaded', () => {
         selectEl.addEventListener('change', loadVolumeProfile);
     }
 });
+
 
 document.getElementById('fetch-btn').addEventListener('click', loadVolumeProfile);
 
@@ -173,8 +175,8 @@ function renderTradingViewWidget(container, ticker) {
         formattedSymbol = "NASDAQ:" + ticker;
     }
 
-    // Inizializza il widget sfruttando la libreria caricata in modo sicuro nell'head dell'HTML
-    if (typeof TradingView !== 'undefined') {
+    // Se la libreria è pronta, avvia il widget immediatamente
+    if (typeof TradingView !== 'undefined' && typeof TradingView.widget === 'function') {
         new TradingView.widget({
             "width": "100%",
             "height": "100%",
@@ -191,7 +193,11 @@ function renderTradingViewWidget(container, ticker) {
             "container_id": container.id
         });
     } else {
-        container.innerHTML = '<div class="loading-text-chart" style="color: #ef4444;">Errore: Libreria TradingView non caricata. Ricarica la pagina.</div>';
+        // Se non è ancora pronta, attendi 500ms e riprova automaticamente senza mostrare errori
+        container.innerHTML = '<div class="loading-text-chart">Sincronizzazione con i server di TradingView...</div>';
+        setTimeout(function() {
+            renderTradingViewWidget(container, ticker);
+        }, 500);
     }
 }
 
